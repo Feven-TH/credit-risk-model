@@ -40,13 +40,12 @@ cust = finalize_dataset(cust)
 
 # DYNAMIC COLUMN DETECTION (Based on Features Only)
 
-ignore_cols = ['AccountId'] # Target is not defined, so only ignore AccountId
+ignore_cols = ['AccountId'] 
 
 num_cols = cust.select_dtypes(include=['float64', 'int64']).columns.tolist()
 num_cols = [c for c in num_cols if c not in ignore_cols]  
 
 cat_cols = cust.select_dtypes(include=['object', 'category']).columns.tolist()
-# Filter out AccountId from categorical columns
 cat_cols = [c for c in cat_cols if c not in ignore_cols]
 
 
@@ -76,9 +75,7 @@ num_pipeline = Pipeline([
 cat_pipeline = Pipeline([
     ('imputer', SimpleImputer(strategy='most_frequent')),
     ('df_converter', DataFrameConverter()),
-    # Encode categorical strings to numerical integers
     ('encoder', OrdinalEncoder(handle_unknown='use_encoded_value', unknown_value=-1)),
-    # Apply WoE transformation (this step requires a target 'y' during fit)
     ('woe', WOE()) 
 ])
 
@@ -88,7 +85,6 @@ preprocessor = ColumnTransformer([
     ('cat', cat_pipeline, cat_cols)
 ])
 
-#  FULL PIPELINE (The complete Feature Engineering step)
 
 full_pipeline = Pipeline([
     ('preprocessor', preprocessor)
@@ -99,17 +95,11 @@ full_pipeline = Pipeline([
 X = cust.drop(columns=['AccountId']) 
 y_woe_target = cust['fraud_flag'] 
 
-
 X_transformed = full_pipeline.fit_transform(X, y_woe_target)
 
 feature_names = num_cols + [f'woe_{c}' for c in cat_cols]
 X_transformed_df = pd.DataFrame(X_transformed, columns=feature_names)
 
-
-# SAVE ARTIFACTS AND OUTPUT
-
-
-# Save the transformed features (result of Task 3)
 X_transformed_df.to_csv('../data/processed/transformed_features_task3.csv', index=False)
 
 # Save the trained pipeline
