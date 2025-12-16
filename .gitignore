@@ -2,3 +2,7 @@ data
 __pycache__
 .venv
 models
+src/mlflow.db
+mlruns
+src/artifacts/
+mlflow.db
