@@ -1,0 +1,7 @@
+services:
+  credit-api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src # This lets the container see your mlruns/db

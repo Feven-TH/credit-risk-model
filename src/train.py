@@ -212,5 +212,6 @@ train_and_log_model(
     "Random_Forest_V1", 
     rf_params
 )
-
+print(num_cols)
+print(cat_cols)
 print("\n--- Task 5 Model Training Complete. Check MLflow UI for comparison. ---")
