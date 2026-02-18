@@ -124,7 +124,7 @@ Everything is automated via the Makefile.
 
 ## 📊 Evaluation
 - **Model:** RandomForestClassifier (Optuna-optimized)
-- **Metrics:** 92%+ ROC-AUC; validated via stratified sampling in CI to ensure class balance.
+- **Metrics:** 75%+ ROC-AUC; validated via stratified sampling in CI to ensure class balance.
 - **Stability:** K-Means labels are validated for consistency across training runs to prevent "label flipping."
 ---
 
