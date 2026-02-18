@@ -6,3 +6,4 @@ src/mlflow.db
 mlruns
 src/artifacts/
 mlflow.db
+predictions_log.csv

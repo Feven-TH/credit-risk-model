@@ -1,7 +1,13 @@
 services:
   credit-api:
     build: .
+    container_name: credit_risk_api
     ports:
       - "8000:8000"
     volumes:
-      - ./src:/app/src # This lets the container see your mlruns/db
+      - .:/app
+      # This is your "Easy Fix" tunnel
+      - ./mlruns:/home/feven/Desktop/credit-risk-model/mlruns
+    environment:
+      - MLFLOW_TRACKING_URI=sqlite:////app/mlflow.db
+      - PYTHONPATH=/app
