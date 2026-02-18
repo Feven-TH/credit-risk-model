@@ -18,17 +18,18 @@ jobs:
           pip install -r requirements.txt
           pip install pytest-cov
 
-      - name: Setup Mock Environment
+      - name: Create Dummy Data for Training
         run: |
-          # 1. Create directory structure expected by train.py
           mkdir -p data/raw
-          mkdir -p models
-          
-          # 2. Create Dummy Data (10 rows to satisfy stratification)
           echo "TransactionId,BatchId,AccountId,SubscriptionId,CustomerId,CurrencyCode,CountryCode,ProviderId,ProductId,ProductCategory,ChannelId,Amount,Value,TransactionStartTime,PricingStrategy,FraudResult" > data/raw/data.csv
-          for i in {1..5}; do echo "T$i,B1,A1,S1,C1,UGX,256,P1,Pr1,airtime,Ch1,100,100,2018-11-15T02:18:49Z,2,0" >> data/raw/data.csv; done
-          for i in {6..10}; do echo "T$i,B1,A2,S1,C2,UGX,256,P1,Pr1,airtime,Ch1,5000,5000,2018-11-15T02:25:49Z,2,1" >> data/raw/data.csv; done
-
+          # Generate 6 different customers so K-Means (n_clusters=3) works
+          echo "T1,B1,Acc_1,S1,C1,UGX,256,P1,Pr1,airtime,Ch1,1000,1000,2018-11-15T02:18:49Z,2,0" >> data/raw/data.csv
+          echo "T2,B2,Acc_2,S2,C2,UGX,256,P1,Pr1,airtime,Ch1,2000,2000,2018-11-15T02:20:49Z,2,0" >> data/raw/data.csv
+          echo "T3,B3,Acc_3,S3,C3,UGX,256,P1,Pr1,airtime,Ch1,5000,5000,2018-11-15T02:25:49Z,2,1" >> data/raw/data.csv
+          echo "T4,B4,Acc_4,S4,C4,UGX,256,P1,Pr1,airtime,Ch1,100,100,2018-11-15T02:26:49Z,2,0" >> data/raw/data.csv
+          echo "T5,B5,Acc_5,S5,C5,UGX,256,P1,Pr1,airtime,Ch1,10000,10000,2018-11-15T02:27:49Z,2,1" >> data/raw/data.csv
+          echo "T6,B6,Acc_6,S6,C6,UGX,256,P1,Pr1,airtime,Ch1,500,500,2018-11-15T02:28:49Z,2,0" >> data/raw/data.csv
+      
       - name: Pre-Train and Register Champion
         env:
           MLFLOW_TRACKING_URI: sqlite:///mlflow.db
