@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 
 
-from src.data_processing import aggregate_customer_features, add_recency
+from research.data_processing import aggregate_customer_features, add_recency
 
 @pytest.fixture
 def sample_raw_data():
