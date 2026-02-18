@@ -23,12 +23,12 @@ jobs:
           mkdir -p data/raw
           echo "TransactionId,BatchId,AccountId,SubscriptionId,CustomerId,CurrencyCode,CountryCode,ProviderId,ProductId,ProductCategory,ChannelId,Amount,Value,TransactionStartTime,PricingStrategy,FraudResult" > data/raw/data.csv
           
-          # Create 6 Low-Risk samples (Small amounts, no fraud)
+          # Create 6 Low-Risk samples
           for i in {1..6}; do
             echo "T$i,B$i,Acc_Low_$i,S$i,C$i,UGX,256,P1,Pr1,airtime,Ch1,100,100,2018-11-15T02:18:49Z,2,0" >> data/raw/data.csv
           done
           
-          # Create 6 High-Risk samples (Large amounts, marked fraud)
+          # Create 6 High-Risk samples
           for i in {7..12}; do
             echo "T$i,B$i,Acc_High_$i,S$i,C$i,UGX,256,P1,Pr1,airtime,Ch1,10000,10000,2018-11-15T02:25:49Z,2,1" >> data/raw/data.csv
           done
@@ -38,16 +38,28 @@ jobs:
           MLFLOW_TRACKING_URI: sqlite:///mlflow.db
           PYTHONPATH: ${{ github.workspace }}/src
         run: |
-          # Run training to generate the DB
+          # 1. Run training to generate local artifacts
           python src/train.py
           
-          # Manually tag it as 'champion' so the API finds it
+          # 2. Manually register the logged model and set alias
           python -c "
           import mlflow
           from mlflow import MlflowClient
           client = MlflowClient(tracking_uri='sqlite:///mlflow.db')
-          latest_version = client.get_latest_versions('Bati_Bank_Credit_Model')[0].version
-          client.set_registered_model_alias('Bati_Bank_Credit_Model', 'champion', latest_version)
+          
+          # Find the run we just created
+          experiment = client.get_experiment_by_name('Bati_Bank_Credit_Risk_V2')
+          runs = client.search_runs(experiment_ids=[experiment.experiment_id], max_results=1)
+          run_id = runs[0].info.run_id
+          
+          # Register the model name your API expects
+          model_name = 'Bati_Bank_Credit_Model'
+          model_uri = f'runs:/{run_id}/model'
+          mv = mlflow.register_model(model_uri, model_name)
+          
+          # Assign the 'champion' alias so the API health check passes
+          client.set_registered_model_alias(model_name, 'champion', mv.version)
+          print(f'✅ Successfully registered run {run_id} as {model_name} version {mv.version} (champion)')
           "
 
       - name: Run Pipeline Tests
