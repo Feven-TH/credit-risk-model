@@ -27,7 +27,8 @@ def run_production_training():
     cust['is_high_risk'] = labeler.predict_risk(rfm_data)
 
     # 3. Model Training
-    X = cust.drop(columns=['AccountId', 'is_high_risk'])
+    leaky_features = ['recency_days', 'txn_count', 'amount_sum']
+    X = cust.drop(columns=['AccountId', 'is_high_risk'] + leaky_features)
     y = cust['is_high_risk']
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y)
 

@@ -1,27 +1,70 @@
-name: Python CI
+name: CI Pipeline
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
-  build-and-test:
+  test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.9"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pytest httpx
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest-cov
 
-    - name: Test with pytest
-      env:
-        PYTHONPATH: .
-      run: |
-        # We use || true so version warnings don't stop the build
-        pytest tests/test_api.py || true
+      - name: Create Dummy Data for Training
+        run: |
+          mkdir -p data/raw
+          echo "TransactionId,BatchId,AccountId,SubscriptionId,CustomerId,CurrencyCode,CountryCode,ProviderId,ProductId,ProductCategory,ChannelId,Amount,Value,TransactionStartTime,PricingStrategy,FraudResult" > data/raw/data.csv
+          
+          # Create 6 Low-Risk samples
+          for i in {1..6}; do
+            echo "T$i,B$i,Acc_Low_$i,S$i,C$i,UGX,256,P1,Pr1,airtime,Ch1,100,100,2018-11-15T02:18:49Z,2,0" >> data/raw/data.csv
+          done
+          
+          # Create 6 High-Risk samples
+          for i in {7..12}; do
+            echo "T$i,B$i,Acc_High_$i,S$i,C$i,UGX,256,P1,Pr1,airtime,Ch1,10000,10000,2018-11-15T02:25:49Z,2,1" >> data/raw/data.csv
+          done
+          
+      - name: Pre-Train and Register Champion
+        env:
+          MLFLOW_TRACKING_URI: sqlite:///mlflow.db
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: |
+          # 1. Run training to generate local artifacts
+          python src/train.py
+          
+          # 2. Manually register the logged model and set alias
+          python -c "
+          import mlflow
+          from mlflow import MlflowClient
+          client = MlflowClient(tracking_uri='sqlite:///mlflow.db')
+          
+          # Find the run we just created
+          experiment = client.get_experiment_by_name('Bati_Bank_Credit_Risk_V2')
+          runs = client.search_runs(experiment_ids=[experiment.experiment_id], max_results=1)
+          run_id = runs[0].info.run_id
+          
+          # Register the model name your API expects
+          model_name = 'Bati_Bank_Credit_Model'
+          model_uri = f'runs:/{run_id}/model'
+          mv = mlflow.register_model(model_uri, model_name)
+          
+          # Assign the 'champion' alias so the API health check passes
+          client.set_registered_model_alias(model_name, 'champion', mv.version)
+          print(f'✅ Successfully registered run {run_id} as {model_name} version {mv.version} (champion)')
+          "
+
+      - name: Run Pipeline Tests
+        env:
+          MLFLOW_TRACKING_URI: sqlite:///mlflow.db
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: |
+          pytest tests/pipeline_test.py
