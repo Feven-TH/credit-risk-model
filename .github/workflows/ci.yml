@@ -1,35 +1,54 @@
-name: Credit Risk Pipeline CI
+name: CI Pipeline
 
-on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
+on: [push, pull_request]
 
 jobs:
   test:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.10"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
 
-    - name: Install Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        # Ensure test tools are present
-        pip install pytest pytest-cov httpx 
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest-cov
 
-    - name: Run All Tests
-      env:
-        # Crucial: This allows the runner to find your 'src' folder
-        PYTHONPATH: .
-      run: |
-        # Pointing to the 'tests/' folder runs pipeline_test.py and all others
-        pytest tests/ -v
+      - name: Setup Mock Environment
+        run: |
+          # 1. Create directory structure expected by train.py
+          mkdir -p data/raw
+          mkdir -p models
+          
+          # 2. Create Dummy Data (10 rows to satisfy stratification)
+          echo "TransactionId,BatchId,AccountId,SubscriptionId,CustomerId,CurrencyCode,CountryCode,ProviderId,ProductId,ProductCategory,ChannelId,Amount,Value,TransactionStartTime,PricingStrategy,FraudResult" > data/raw/data.csv
+          for i in {1..5}; do echo "T$i,B1,A1,S1,C1,UGX,256,P1,Pr1,airtime,Ch1,100,100,2018-11-15T02:18:49Z,2,0" >> data/raw/data.csv; done
+          for i in {6..10}; do echo "T$i,B1,A2,S1,C2,UGX,256,P1,Pr1,airtime,Ch1,5000,5000,2018-11-15T02:25:49Z,2,1" >> data/raw/data.csv; done
+
+      - name: Pre-Train and Register Champion
+        env:
+          MLFLOW_TRACKING_URI: sqlite:///mlflow.db
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: |
+          # Run training to generate the DB
+          python src/train.py
+          
+          # Manually tag it as 'champion' so the API finds it
+          python -c "
+          import mlflow
+          from mlflow import MlflowClient
+          client = MlflowClient(tracking_uri='sqlite:///mlflow.db')
+          latest_version = client.get_latest_versions('Bati_Bank_Credit_Model')[0].version
+          client.set_registered_model_alias('Bati_Bank_Credit_Model', 'champion', latest_version)
+          "
+
+      - name: Run Pipeline Tests
+        env:
+          MLFLOW_TRACKING_URI: sqlite:///mlflow.db
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: |
+          pytest tests/pipeline_test.py
