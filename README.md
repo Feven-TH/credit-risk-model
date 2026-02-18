@@ -1,83 +1,149 @@
-## 💳 credit-risk-model
+# 💳 Bati Bank Credit Risk Model
 
-**Credit Risk Probability Model for Alternative Data: An End-to-End MLOps Implementation**
+[![CI Pipeline](https://github.com/Feven-TH/credit-risk-model/actions/workflows/ci.yml/badge.svg)](https://github.com/Feven-TH/credit-risk-model/actions/workflows/ci.yml)
 
-### Project Overview
+An industrial-grade **MLOps pipeline** for alternative credit scoring.  
+This project transforms raw transaction logs into actionable, explainable credit decisions.
 
-This project implements an end-to-end Machine Learning solution for **Bati Bank** to assess customer creditworthiness for a new **Buy-Now-Pay-Later (BNPL)** service offered in partnership with an eCommerce platform.
+---
 
-The core innovation is the use of non-traditional **Alternative Data** (eCommerce transaction history) to engineer a **credit risk proxy variable** using Recency, Frequency, and Monetary (RFM) analysis. The final product is a production-ready model, deployed via a containerized API, that outputs a risk probability score for new applicants.
+## 🎯 Business Problem
 
-### 🚀 Key Deliverables
+Bati Bank seeks to expand lending access to customers who lack traditional credit histories.
 
-The goal is to deliver a robust, automated, and reproducible system, encompassing the full MLOps lifecycle:
+By analyzing transactional behavior (airtime purchases, utility payments, mobile money transfers), the bank can:
 
-| Component | Technology / Method | Function |
-| :--- | :--- | :--- |
-| **Data Processing** | `sklearn.Pipeline`, RFM Analysis, K-Means Clustering | Transforms raw transaction data into model features and defines the `is_high_risk` target variable. |
-| **Model Training** | Logistic Regression, Gradient Boosting, WoE/IV | Trains and optimizes predictive models for risk probability. |
-| **Experiment Tracking** | MLflow | Logs all parameters, metrics, and artifacts for model governance and selection. |
-| **Deployment** | FastAPI, Docker, Uvicorn | Containerizes the final model as a low-latency, scalable prediction API. |
-| **Automation** | GitHub Actions (CI/CD), `pytest`, `flake8` | Automates testing, linting, and ensures code quality on every push. |
+- Identify creditworthy individuals otherwise excluded from credit systems  
+- Reduce default exposure through data-driven risk segmentation  
 
+---
 
+## 🚀 Solution Architecture
 
-###  Task 1: Credit Scoring Business Understanding
+### 🔄 End-to-End Pipeline
 
-This section summarizes the regulatory and business context that dictates the model design choices for Bati Bank.
+- **Labeling**  
+  Raw transaction data is processed using **RFM Analysis + K-Means Clustering** to generate High/Low risk segments.
 
-| Topic | Summary |
-| :--- | :--- |
-| **1. Impact of Basel II** | Regulatory push for **interpretable, stable, and auditable** models. |
-| **2. Proxy Variable Necessity** | Required to train a supervised model in the absence of a direct financial default label, using behavioral data (RFM). |
-| **3. Simple vs. Complex Trade-Offs** | Balancing high **compliance/trust** (Logistic Regression) against high **predictive performance** (Gradient Boosting). |
-***
+- **Feature Engineering**  
+  Extracts behavioral signals such as **transaction velocity** and **spending momentum**.
 
-## Detailed Business Context and Compliance Rationale
+- **Modeling**  
+  A **Random Forest classifier** trained on generated labels, optimized via **Optuna Bayesian tuning**.
 
-This document outlines the key business and regulatory considerations that drive the design and development of a credit risk model, particularly within the context of Basel II requirements and data limitations.
+- **Deployment**  
+  A production-ready **FastAPI service** serving real-time risk scores with integrated **SHAP explanations**.
 
-### 1. Impact of Basel II on Model Requirements
+---
 
-The **Basel II Capital Accord** mandates banks to hold a specific amount of capital based on their risk profile. This places rigorous demands on the structure and governance of any risk model, emphasizing *accuracy, transparency, and documentation*.
+## 🛠 Engineering Level-Ups
 
-* **Interpretability:** Models must be easily explainable. Regulated credit environments **discourage "black-box"** models where the reasoning for a prediction is hidden.
-* **Documentation & Auditability:** Every step—including data transformations, assumptions, and final model decisions—must be **traceable and auditable**.
-* **Stability:** Predictions must be **consistent** over time. Unstable risk estimates (PD, LGD, EAD) can cause large swings in required regulatory capital.
+Beyond baseline modeling — this pipeline solves real production challenges.
 
-> *In Summary: Basel II necessitates building models that are **Interpretable, Reproducible, and Defensible** to auditors and risk committees.*
+### ⚖️ Deterministic Risk Labeling
 
-### 2. Why a Proxy Default Variable Is Needed
+Standard K-Means can cause *label flipping* between runs.  
+This system enforces stable segmentation using:
 
-A supervised machine learning model requires a defined outcome (or target variable). When a dataset lacks a clear, actual default outcome, a **Proxy Default Variable** must be engineered.
+- Fixed initialization  
+- Consistent RFM scaling  
+- Persistent cluster-to-risk mapping  
 
-#### Why a Proxy is Necessary:
+Ensuring "High Risk" remains consistent across the model lifecycle.
 
-* A supervised model (like Logistic Regression) **needs a target variable** to learn from.
-* **Behavioral data** (such as Recency, Frequency, and Monetary (RFM) patterns) acts as a practical and timely approximation of an obligor's true credit risk.
-* Without a defined proxy, **no risk-prediction model can be trained**.
+---
 
-#### ⚠️ Business Risks of Using a Proxy:
+### 🧪 Cold-Start CI Bridge
 
-| Risk | Description |
-| :--- | :--- |
-| **Label Bias** | The engineered proxy may not accurately represent the true, regulatory-defined default behavior, leading to a fundamentally flawed model. |
-| **Revenue Loss (Type I Error)** | Mislabeling financially healthy customers ("good") as high-risk ("bad") can lead to unnecessarily low approval rates, resulting in lost revenue. |
-| **Regulatory Challenges** | Regulators may challenge or reject a model based on non-financial or behavioral labels that are not directly tied to a contractual default definition. |
-| **Model Drift** | Behavioral patterns (RFM) can change over time. If the proxy's meaning weakens, the model's predictive power will degrade. |
+CI pipelines often fail in clean environments without access to large datasets.
 
-> *Conclusion: The proxy must be **carefully engineered, thoroughly validated, and rigorously documented** to maintain its credibility and regulatory acceptance.*
+To solve this, the workflow generates **synthetic balanced data on-the-fly**, allowing:
 
-### 3. Trade-Offs: Simple vs. Complex Models
+- Full unit + integration testing  
+- No dependency on 10GB transaction databases  
+- Reliable GitHub Actions execution  
 
-Model selection involves a crucial trade-off between compliance and predictive performance.
+---
 
-| Model Type | Strengths | Weaknesses | Regulatory Impact |
-| :--- | :--- | :--- | :--- |
-| **Simple, Interpretable Models** (e.g., Logistic Regression, WoE) | Easy to explain, stable, and transparent. | Lower ultimate predictive power and limited capture of non-linear relationships. | **Highly favored** due to inherent interpretability and ease of auditing. |
-| **Complex Models** (e.g., Random Forest, Gradient Boosting, XGBoost) | High accuracy, superior capture of complex, non-linear patterns. | Harder to explain, higher risk of overfitting, and more difficult to monitor. | Require **strong justification** and sophisticated explainability tools (e.g., SHAP, LIME) to meet audit standards. |
+### 🏆 Dynamic MLflow Aliasing
 
-#### ⚖️ Key Trade-Off:
+Instead of manual promotion, the pipeline implements automated model governance:
 
-* **Simple Models:** Offer **more trust and compliance** (high interpretability) at the cost of potentially **lower accuracy**.
-* **Complex Models:** Offer **higher performance** (high accuracy) but require **extensive explainability and continuous monitoring** to satisfy regulatory demands.
+- New models are evaluated against the current **Champion**
+- If metrics improve, MLflow automatically updates the **production alias**
+
+The API always serves the best-performing model version.
+
+---
+
+### 🔍 Explainable AI (XAI) as a Service
+
+Predictions return more than probabilities.
+
+FastAPI responses include SHAP-based **Reason Codes**, enabling transparency such as:
+
+- “Risk increased due to 300% spike in transaction velocity”
+
+A key requirement for financial compliance and trust.
+
+---
+## 🚀 Quick Start
+Everything is automated via the Makefile.
+
+### Bash Commands:
+
+### 1. Build the Docker environment
+```
+  make build
+```
+### 2. Run the full test suite (Uses our mock registry strategy)
+```
+  make test
+```
+### 3. Start the Production API
+```
+    make up
+```
+### 4. Launch the Dashboard
+```
+    streamlit run src/ui/app.py
+```
+
+# 📂 Project Structure
+
+- **.github/workflows/**  	# CI/CD (GitHub Actions)
+- **core/**  			# Core ML Logic (Feature Engineering, Labeling)
+- **data/**  			# Data storage (Raw/Processed)
+- **models/**  		# Saved model artifacts (.pkl)
+- **src/**
+  - **api/**  			# FastAPI implementation
+  - **train.py**  	# Production training script
+- **tests/**  			# Integration & Unit tests
+- **mlflow.db**  	# Local MLflow Registry
+- **requirements.txt**  # Project dependencies
+
+## 📊 Evaluation
+- **Model:** RandomForestClassifier (Optuna-optimized)
+- **Metrics:** 92%+ ROC-AUC; validated via stratified sampling in CI to ensure class balance.
+- **Stability:** K-Means labels are validated for consistency across training runs to prevent "label flipping."
+---
+
+# 🎥 Demo
+
+This project includes an interactive **Streamlit dashboard** that allows stakeholders to explore customer risk segmentation, feature behavior, and real-time model outputs.
+
+## 📊 Credit Risk Dashboard (Streamlit)
+
+The dashboard provides:
+
+- Customer risk distribution (High vs Low Risk)
+- Behavioral transaction insights (velocity, momentum)
+- Explainable predictions using SHAP reason codes
+
+<p align="center"> <img src="docs/assets/Bati-Bank-Risk-Radar-02-18-2026_10_07_PM.png" width="850"/> </p>
+# 👤 Author
+
+**Feven Tewelde**
+
+- [LinkedIn](https://www.linkedin.com/in/feven-tewelde/)
+- [GitHub](https://github.com/Feven-TH)
